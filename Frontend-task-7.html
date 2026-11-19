@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Task 7 – DOM Manipulation</title>
+<style>
+:root {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  --bg: #f3f5f1; --surface: #ffffff; --ink: #1c2a24; --muted: #5d6b64;
+  --line: #d5dcd6; --accent: #1f6f5c; --accent-ink: #ffffff; --danger: #a8362a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121a17; --surface: #1a2420; --ink: #e8efe9; --muted: #98a79f;
+    --line: #2d3b35; --accent: #5ec2a6; --accent-ink: #0d1a15; --danger: #ef8a7c;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121a17; --surface: #1a2420; --ink: #e8efe9; --muted: #98a79f;
+  --line: #2d3b35; --accent: #5ec2a6; --accent-ink: #0d1a15; --danger: #ef8a7c;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  font-size: 17px; line-height: 1.5;
+}
+main { max-width: 1040px; margin: 0 auto; padding: 28px 18px 56px; }
+h1 { font-family: "Fraunces", Georgia, serif; font-size: clamp(1.8rem, 5vw, 2.6rem); line-height: 1.15; margin: 0 0 6px; font-weight: 600; }
+.lede { color: var(--muted); margin: 0 0 28px; max-width: 60ch; }
+.grid { display: grid; gap: 22px; grid-template-columns: 1fr; }
+@media (min-width: 860px) { .grid { grid-template-columns: 5fr 7fr; align-items: start; } }
+section { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+h2 { font-family: "Fraunces", Georgia, serif; font-size: 1.3rem; margin: 0 0 14px; font-weight: 600; }
+
+/* To-do */
+.add { display: flex; gap: 8px; }
+.add input {
+  flex: 1; min-width: 0; padding: 11px 12px; font: inherit; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+}
+button { font: inherit; cursor: pointer; border-radius: 8px; }
+.btn { padding: 11px 16px; background: var(--accent); color: var(--accent-ink); border: 0; font-weight: 600; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+#todo-list { list-style: none; margin: 16px 0 0; padding: 0; }
+#todo-list li {
+  display: flex; align-items: center; gap: 10px; padding: 10px 4px;
+  border-bottom: 1px solid var(--line);
+}
+#todo-list label { flex: 1; display: flex; gap: 10px; align-items: center; cursor: pointer; overflow-wrap: anywhere; }
+#todo-list input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+#todo-list li.done span { text-decoration: line-through; color: var(--muted); }
+.remove { background: transparent; border: 1px solid var(--line); color: var(--danger); padding: 5px 10px; font-size: .9rem; }
+.remove:hover { border-color: var(--danger); }
+.empty, .count { color: var(--muted); font-size: .95rem; margin: 14px 0 0; }
+.error { color: var(--danger); font-size: .92rem; margin: 8px 0 0; min-height: 1.2em; }
+
+/* Gallery */
+.stage { margin: 0; }
+#main-image { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 10px; background: var(--bg); transition: opacity .18s; }
+#main-image.swap { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { #main-image { transition: none; } }
+#caption { margin: 10px 2px 14px; color: var(--muted); }
+.thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (min-width: 520px) { .thumbs { grid-template-columns: repeat(6, 1fr); } }
+.thumb { padding: 0; border: 2px solid transparent; background: none; overflow: hidden; line-height: 0; }
+.thumb img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; opacity: .65; }
+.thumb:hover img { opacity: 1; }
+.thumb[aria-pressed="true"] { border-color: var(--accent); }
+.thumb[aria-pressed="true"] img { opacity: 1; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Task 7: DOM manipulation</h1>
+  <p class="lede">A to-do list that adds and removes items, and an image gallery that swaps the main image when you click a thumbnail.</p>
+
+  <div class="grid">
+    <section aria-labelledby="todo-h">
+      <h2 id="todo-h">To-do list</h2>
+      <div class="add">
+        <input id="todo-input" type="text" placeholder="Add a task" aria-label="New task" maxlength="120" autocomplete="off">
+        <button id="add-btn" class="btn" type="button">Add task</button>
+      </div>
+      <p id="todo-error" class="error" role="alert"></p>
+      <ul id="todo-list"></ul>
+      <p id="todo-empty" class="empty">No tasks yet. Add your first one above.</p>
+      <p id="todo-count" class="count" aria-live="polite"></p>
+    </section>
+
+    <section aria-labelledby="gal-h">
+      <h2 id="gal-h">Image gallery</h2>
+      <figure class="stage">
+        <img id="main-image" alt="">
+        <figcaption id="caption"></figcaption>
+      </figure>
+      <div class="thumbs" id="thumbs" role="group" aria-label="Gallery thumbnails"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+/* ---------- To-do list ---------- */
+const input = document.getElementById('todo-input');
+const addBtn = document.getElementById('add-btn');
+const list = document.getElementById('todo-list');
+const emptyMsg = document.getElementById('todo-empty');
+const countMsg = document.getElementById('todo-count');
+const errorMsg = document.getElementById('todo-error');
+
+function updateStatus() {
+  const total = list.children.length;
+  const done = list.querySelectorAll('li.done').length;
+  emptyMsg.hidden = total > 0;
+  countMsg.textContent = total ? done + ' of ' + total + ' done' : '';
+}
+
+function addTask() {
+  const text = input.value.trim();
+  if (!text) {
+    errorMsg.textContent = 'Type a task before adding it.';
+    input.focus();
+    return;
+  }
+  errorMsg.textContent = '';
+
+  const li = document.createElement('li');
+  const label = document.createElement('label');
+  const check = document.createElement('input');
+  check.type = 'checkbox';
+  const span = document.createElement('span');
+  span.textContent = text;           // textContent keeps user input safe from HTML injection
+  label.append(check, span);
+
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'remove';
+  del.textContent = 'Remove';
+  del.setAttribute('aria-label', 'Remove task: ' + text);
+
+  li.append(label, del);
+  list.appendChild(li);
+
+  input.value = '';
+  input.focus();
+  updateStatus();
+}
+
+addBtn.addEventListener('click', addTask);
+input.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') addTask();
+});
+input.addEventListener('input', function () { errorMsg.textContent = ''; });
+
+// Event delegation: one listener handles every current and future item
+list.addEventListener('click', function (e) {
+  if (e.target.classList.contains('remove')) {
+    e.target.closest('li').remove();
+    updateStatus();
+  }
+});
+list.addEventListener('change', function (e) {
+  if (e.target.type === 'checkbox') {
+    e.target.closest('li').classList.toggle('done', e.target.checked);
+    updateStatus();
+  }
+});
+
+['Read chapter on the DOM', 'Practice event listeners'].forEach(function (t) {
+  input.value = t; addTask();
+});
+input.blur();
+
+/* ---------- Image gallery ---------- */
+// Images are generated as inline SVG so the page needs no external files.
+function scene(sky1, sky2, sun, hill1, hill2) {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400">' +
+    '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0" stop-color="' + sky1 + '"/><stop offset="1" stop-color="' + sky2 + '"/></linearGradient></defs>' +
+    '<rect width="600" height="400" fill="url(#g)"/>' +
+    '<circle cx="440" cy="130" r="48" fill="' + sun + '"/>' +
+    '<path d="M0 290 Q150 190 300 270 T600 250 V400 H0Z" fill="' + hill1 + '"/>' +
+    '<path d="M0 340 Q200 260 380 330 T600 320 V400 H0Z" fill="' + hill2 + '"/></svg>';
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
+const photos = [
+  { src: scene('#f6c58a', '#f3e6c8', '#fff3d6', '#8c9a6b', '#5f7551'), caption: 'Golden morning over the hills' },
+  { src: scene('#274c7a', '#6e9bc9', '#f1f3f8', '#2f5d4a', '#1f3f33'), caption: 'Blue hour, valley below' },
+  { src: scene('#e98a74', '#f6c9a8', '#fff0c9', '#9c5b5b', '#6c3d46'), caption: 'Sunset ridge' },
+  { src: scene('#7fb3a1', '#d6ebe1', '#ffffff', '#4f8a6f', '#2f6350'), caption: 'Misty green pastures' },
+  { src: scene('#3a3560', '#8a6fa8', '#f5e3ff', '#37305a', '#231f3d'), caption: 'Twilight over the dunes' },
+  { src: scene('#b9d7ee', '#eef6fb', '#fffbe8', '#a6b9a0', '#7d9578'), caption: 'Clear afternoon, soft light' }
+];
+
+const mainImage = document.getElementById('main-image');
+const caption = document.getElementById('caption');
+const thumbs = document.getElementById('thumbs');
+
+function showPhoto(index) {
+  const p = photos[index];
+  mainImage.classList.add('swap');
+  setTimeout(function () {
+    mainImage.src = p.src;
+    mainImage.alt = p.caption;
+    caption.textContent = p.caption;
+    mainImage.classList.remove('swap');
+  }, 120);
+  thumbs.querySelectorAll('.thumb').forEach(function (btn, i) {
+    btn.setAttribute('aria-pressed', String(i === index));
+  });
+}
+
+photos.forEach(function (p, i) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'thumb';
+  btn.dataset.index = i;
+  const img = document.createElement('img');
+  img.src = p.src;
+  img.alt = p.caption;
+  btn.appendChild(img);
+  thumbs.appendChild(btn);
+});
+
+thumbs.addEventListener('click', function (e) {
+  const btn = e.target.closest('.thumb');
+  if (btn) showPhoto(Number(btn.dataset.index));
+});
+
+// Initial state (no delay needed on first paint)
+mainImage.src = photos[0].src;
+mainImage.alt = photos[0].caption;
+caption.textContent = photos[0].caption;
+thumbs.firstChild.setAttribute('aria-pressed', 'true');
+updateStatus();
+</script>
+</body>
+</html>
